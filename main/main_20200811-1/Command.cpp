@@ -1,5 +1,18 @@
 #include "Command.h"
+#include <string.h>
+#include <stdint.h>
+
+
 unsigned long timestamp = 0;
+
+
+/*
+typedef struct Linked_list{
+    int32_t data;
+    struct Linked_list *ptr_front;
+    struct Linked_list *ptr_back;
+}linked_list;
+*/
 
 command::command(Servo a,Servo b,Servo c,Servo d){
     servo_a = a;
@@ -10,22 +23,33 @@ command::command(Servo a,Servo b,Servo c,Servo d){
 
 void command::command_clean(){
 /* command 指令 & index 歸零 */
+
+    memset(command_line, 0, sizeof(command_line));
+    command_num=0;              
+    /*
     for (int i = 0 ; i <= 16 ; i++)
         command_line[i]=0;
-    command_num=0;              
+    */
 }
 
+//沒必要
 byte* command::command_return(){
     return command_line;
 }
 
 void command::set_command_line(byte a[]){
 
+    for(int i = 0; i < 16 && a[i] != 0; i++){ 
+        command_line[command_num++] = a[i];
+    }            
+
+    /*
     for(int i =0; i<16; i++){ 
         if (a[i]==0) break;    
 
         command_line[command_num++] = a[i];
     }            
+    */
 }
 
 String command::command_transfer(byte c){
@@ -49,8 +73,8 @@ String command::command_transfer(byte c){
 
 void command::command_print(){
     Serial.println(F("command print:"));
-    for (int i = 0 ; i <= 16 ; i++){   
-        if(command_line[i]==0) break;
+    for (int i = 0 ; i <= 16 & command_line[i]; i++){   
+        //if(command_line[i]==0) break;
 
         // Serial.print(command_transfer(command_line[i]));
         Serial.print(F("指令"));
@@ -66,26 +90,38 @@ void command::command_print(){
 
 void command::command_delete(){
 
+    if (command_num <= 0)
+        command_num = 1;
+    command_num -= 1;
+
+    /*
     if (command_num > 0)
         command_num -= 1;
     else 
         command_num = 0;
+    */
 
-    command_line[command_num]=0;
+    command_line[command_num] = 0;
 }
 
+//沒必要
 int command::command_index(){
     return command_num;
 }
 
 void command::command_exe(byte _command_line[]){
     for (int i = 0; i < 16 ; i++){ 
+
+        /*
+        String left, left_num;
+        String right, right_num;
+        */
+
+
         if (exe_break){
             delay(500);
             break;
         }
-
-        //要修，用function pointer
         else if(_command_line[i]==0)
             break;
         else if(_command_line[i]==1)
@@ -160,6 +196,18 @@ void command::command_exe(byte _command_line[]){
             move_cube("M1","R1");
         else if(_command_line[i]==36)
             move_cube("M2","R2");
+        //L, M, R
+        else if (_command_line[i] >= 'A' && _command_line[i] <= 'c'){
+            servo_rotation(servo_a,cube_position[_command_line[i] - 'A']);
+            is_card_read();
+        }
+        else if (_command_line[i] >= 'D' && _command_line[i] <= 'G'){
+            int32_t temp = _command_line[i] - 'D';
+            servo_rotation(servo_c,cube_height[temp][1]);
+            servo_rotation(servo_b,cube_height[temp][0]);
+            is_card_read();
+        }
+        /*
         else if(_command_line[i]=='A')      //L位置
         {
             servo_rotation(servo_a,cube_position[0]);
@@ -199,6 +247,13 @@ void command::command_exe(byte _command_line[]){
             servo_rotation(servo_b,cube_height[3][0]);
             is_card_read();
         }
+        */
+        //開,關
+        else if (_command_line[i] == 'H' && _command_line[i] == 'I'){
+            servo_rotation(servo_d,claw[_command_line[i]-'H']);
+            is_card_read();
+        }
+        /*
         else if(_command_line[i]=='H')        //開爪
         {   
             servo_rotation(servo_d,claw[0]);
@@ -210,6 +265,7 @@ void command::command_exe(byte _command_line[]){
             is_card_read();
 
         }
+        */
         else if(_command_line[i]=='J')    //while迴圈執行
         {
             for(int j = i+1; j <= 16; j++)
@@ -289,12 +345,14 @@ String command::long_command_string(byte c){
     command[2]='-';
     command[3]='>';
 
-    if (c>=1 && c<=12)
+    if ( (c-1) / 12 == 0)
         command[0]='L';
-    else if (c>12 && c<=24)
+    else if ( (c-1) / 12 == 1)
         command[0]='R';
     else
         command[0]='M';
+    //if (c>=1 && c<=12)
+    //else if (c>12 && c<=24)
 
     if (c%6 == 1 || c%6 == 4)
         command[1]='1';
